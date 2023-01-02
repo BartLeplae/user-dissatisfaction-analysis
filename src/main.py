@@ -5,6 +5,7 @@ from pathlib import Path
 import warnings
 import argparse
 import time
+from incidents_from_odbc import get_incidents_from_db
 
 def get_project_root() -> Path:
     """Get the root of the current project."""
@@ -35,7 +36,8 @@ if __name__ == "__main__":
     incident_data_path = data_dir / f"{args.incidents_fname}.xlsx"
     
     if (args.db):
-        print("Read incidents from database")
+        print("Read incidents from database and store in", incident_data_path)
+        get_incidents_from_db(incident_data_path)
     else:
         print("Read incidents from ", incident_data_path)
     
