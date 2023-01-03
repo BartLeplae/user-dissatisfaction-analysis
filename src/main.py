@@ -27,7 +27,7 @@ import warnings
 import argparse
 import time
 from incidents_from_odbc import get_incidents_from_db
-from chi2_stats import chi2_stats
+from stats import chi2_stats, binom_stats
 
 def get_project_root() -> Path:
     """Get the root of the current project."""
@@ -74,9 +74,52 @@ if __name__ == "__main__":
 
     # Perform secondary analysis when number of values > 20 (application, resolving group, ...)
     df_factors.loc[(df_factors['variable_type']=="analyse")&(df_factors['unique_values']>20),"variable_type"] = "analyse2"  
+
+    # Write factors to Excel
     factors_data_file = output_dir / f"factors.xlsx"
     df_factors.to_excel(factors_data_file,index=False)
 
-    
+    # Write factor values to Excel
+    df_satisfaction = binom_stats(df_incidents, df_factors)
+    factor_values_data_file = output_dir / f"factor_values.xlsx"
+    df_satisfaction.to_excel(factor_values_data_file, index=False)
 
+    # UPON review of factor_values.xlsx:
+    # Considering the similarities in dissatisfaction ratio and limited total, limit ttr_days_log to 5 
+    df_incidents.loc[df_incidents['ttr_days_log']>5,'ttr_days_log']=5
 
+    # Ignore the ttr_days for subsequent analysis
+    df_factors.loc[(df_factors['factor']=="ttr_days"),"variable_type"] = "ignore"
+
+    # Add sla_result == "Unknown" to "Achieved" given the low number of records
+    df_incidents.loc[df_incidents['sla_result']=="Unknown",'sla_result']="Achieved"
+
+    # Limit reassignment count to given the low values for higher reassignment counts
+    df_incidents.loc[df_incidents['reassignment_count']>4,'reassignment_count']=4
+
+    # Reclassify close codes with less than 150 tickets to 'Environmental Restoration'
+    df_incidents.loc[df_incidents['close_code'].isin(
+        ['Capacity Adjustment','Hardware Correction','Redundancy Activation']),'close_code']="Environmental Restoration"
+
+    # plan assignment_group_company secondary analysis
+    df_factors.loc[(df_factors['factor']=="assignment_group_company"),"variable_type"] = "analysis2"
+
+    # Reclassify sla_priority 'VIP' to 'Priority 3' given the low number of records
+    df_incidents.loc[df_incidents['sla_priority']=="VIP",'sla_priority']="Priority 3"
+
+    # Ignore the ka_count_log for subsequent analysis given the lack of correlation with dissatisfaction
+    df_factors.loc[(df_factors['factor']=="ka_count_log"),"variable_type"] = "ignore"
+
+    # Ignore the contact_type for subsequent analysis since 'self_service' is a better differentiator
+    df_factors.loc[(df_factors['factor']=="contact_type"),"variable_type"] = "ignore"
+
+    # Ignore the breached_reason_code for subsequent analysis since values are insufficiently differentiated or have low occurences
+    df_factors.loc[(df_factors['factor']=="breached_reason_code"),"variable_type"] = "ignore"
+
+    # Ignore the appl_tier for subsequent analysis since values are insufficiently differentiated or have low occurences
+    df_factors.loc[(df_factors['factor']=="appl_tier"),"variable_type"] = "ignore"
+
+    # Write adjusted factor values to new Excel file
+    df_satisfaction = binom_stats(df_incidents, df_factors)
+    factor_values_data_file = output_dir / f"factor_values_2.xlsx"    
+    df_satisfaction.to_excel(factor_values_data_file, index=False)   
