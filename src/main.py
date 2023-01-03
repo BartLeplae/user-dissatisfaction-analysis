@@ -27,6 +27,7 @@ import warnings
 import argparse
 import time
 from incidents_from_odbc import get_incidents_from_db
+from chi2_stats import chi2_stats
 
 def get_project_root() -> Path:
     """Get the root of the current project."""
@@ -50,15 +51,32 @@ if __name__ == "__main__":
     parser.add_argument('-d', '--db', help="read incident data from database", action='store_true')
     args = parser.parse_args()
 
+    # Define the paths to be used
     project_path = get_project_root()
     data_dir = project_path / "data"
     output_dir = project_path / "out"
 
-    incident_data_path = data_dir / f"{args.incidents_fname}.xlsx"
+    # Create dataframe with the incidents either from the database or Excel file
+    incident_data_file = data_dir / f"{args.incidents_fname}.xlsx"
     
     if (args.db):
-        print("Read incidents from database and store in", incident_data_path)
-        get_incidents_from_db(incident_data_path)
+        print("Read incidents from database and store in", incident_data_file)
+        df_incidents = get_incidents_from_db(incident_data_file)
     else:
-        print("Read incidents from ", incident_data_path)
+        print("Read incidents from ", incident_data_file)
+        df_incidents = pd.read_excel(incident_data_file)
+        
+    # Perfrom chi2 test to identify the relevant factors (columns) and write the factors to an excel file for further analysis
+    df_factors = chi2_stats(df_incidents)
     
+    # Ignore the factors for which the p value is greater than 5%
+    df_factors.loc[(df_factors['variable_type']=="analyse")&(df_factors['p']>0.05),"variable_type"] = "ignore"
+
+    # Perform secondary analysis when number of values > 20 (application, resolving group, ...)
+    df_factors.loc[(df_factors['variable_type']=="analyse")&(df_factors['unique_values']>20),"variable_type"] = "analyse2"  
+    factors_data_file = output_dir / f"factors.xlsx"
+    df_factors.to_excel(factors_data_file,index=False)
+
+    
+
+
