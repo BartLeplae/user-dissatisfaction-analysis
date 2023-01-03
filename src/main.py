@@ -1,3 +1,24 @@
+""" main:
+
+    - Reads incidents from data lake or from excel file:
+    - Statisical correlation between user dissatisfaction and incident attributes
+    - Builds regression model: determines expected dissatisfaction ration against the combination of incident attributes
+    - Applies the model for groups of incident tickets: support group, application, ...
+    
+    to run: python main.py
+
+Attributes:
+    - -d to retrieve tickets from the data lake (and create a new excel file for subsequent use)
+    - filename of the excel file
+
+Input:
+    - Datalake : incidents
+    - Regression Model
+    
+Output:
+    - Excel file with ...
+"""
+
 import pandas as pd
 import numpy as np
 import sys
