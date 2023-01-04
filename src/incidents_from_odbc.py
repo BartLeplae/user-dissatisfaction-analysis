@@ -7,6 +7,7 @@ Return the tickets as a dataframe
 import pandas as pd
 import numpy as np
 import pyodbc
+from transform_attributes import transform_df_upon_db_retrieval
 
 # Return cursor result as a dataframe
 def as_pandas_DataFrame(cursor):
@@ -64,26 +65,11 @@ def get_incidents_from_db(
 
     conn.close() # Close connection
 
-    # Add the number of times a knowledge article has been used and transform to a log2
+    # Add the number of times a knowledge article has been used
     df = pd.merge(df,df_ka_count, on = 'kcs_solution', how='left' )
-    df['ka_count'].fillna(0,inplace=True)
-    df['ka_count_log'] = np.ceil(np.log2(df['ka_count']+1)/2)
-    df.drop(columns='ka_count', inplace=True)
 
-    # Transform time to resolve to logaritmic scale based on number of days
-    df['ttr_days_log']=np.round(np.log2(1+df['am_ttr']/(24*3600))).astype('int')
-    
-    # Transorm time to resolve from seconds to days
-    df['ttr_days']=np.round(1+df['am_ttr']/(24*3600)).astype('int')
-    df.loc[df['ttr_days']>20,'ttr_days']=20
-    df.drop(columns='am_ttr', inplace=True) # drop time to resolve in seconds
-    
-    # user is dissatisfied when survey response value is 1 or 2
-    # code dissatisfied as 1
-    # drop the survey_response_value column
-    df['user_dissatisfied']=0
-    df.loc[df['survey_response_value']<3,'user_dissatisfied']=1
-    df = df.drop(columns='survey_response_value')
+    # Transform the dataframe
+    df = transform_df_upon_db_retrieval (df)
 
     # Write result set to Excel
     df.to_excel(incident_file, index=False)

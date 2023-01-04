@@ -34,22 +34,25 @@ def chi2_stats(df: pd.DataFrame) -> pd.DataFrame :
 
 def binom_stats(df, df_factors):
 
+    P_DISSATISFACTION = df['user_dissatisfied'].mean() # Overall probability of dissatisfied response
+
     df_satisfaction = pd.DataFrame()
 
     for fct in df_factors.loc[(df_factors['variable_type']=="analyse"),'factor']:
-        print(fct)
         ct_cluster_satisfaction = pd.crosstab(df[fct],df['user_dissatisfied'])
-        ct_cluster_satisfaction.columns=['Satisfied_count','Dissatisfied_count']
-        ct_cluster_satisfaction.index.name='Value'
-        ct_cluster_satisfaction['Factor']=fct
+        ct_cluster_satisfaction.columns=['satisfied_count','dissatisfied_count']
+        ct_cluster_satisfaction.index.name='value'
+        ct_cluster_satisfaction['factor']=fct
         df_satisfaction = pd.concat([df_satisfaction,ct_cluster_satisfaction])
 
 
     df_satisfaction = df_satisfaction.reset_index()
-    df_satisfaction['Total']=df_satisfaction['Satisfied_count']+df_satisfaction['Dissatisfied_count']
-    df_satisfaction['Dissatisfied_ratio'] = df_satisfaction['Dissatisfied_count']/df_satisfaction['Total']
-    # df_satisfaction['Dissatisfied_Ratio']=df_satisfaction['Dissatisfied_count']/df_satisfaction['Total_count']
-    # df_satisfaction_factors =df_satisfaction[['factor','Value','Total_count','Dissatisfied_count','Dissatisfied_Ratio','chi','p','dof']]
+    df_satisfaction['total']=df_satisfaction['satisfied_count']+df_satisfaction['dissatisfied_count']
+    df_satisfaction['dissatisfied_ratio'] = df_satisfaction['dissatisfied_count']/df_satisfaction['total']
+    df_satisfaction['probability'] = df_satisfaction.apply(lambda x: scipy.stats.binom.cdf(k=x['dissatisfied_count'],n=x['total'],p=P_DISSATISFACTION ), axis=1)
+    
+    df_satisfaction = pd.merge(df_satisfaction, df_factors, on='factor', how='left')
+    df_satisfaction.sort_values(by=['chi','factor','dissatisfied_ratio'],ascending=[False,False,False],inplace=True)
 
-    return(df_satisfaction[['Factor','Value','Dissatisfied_ratio','Satisfied_count','Dissatisfied_count','Total']])
+    return(df_satisfaction[['factor','value','dissatisfied_ratio','satisfied_count','dissatisfied_count','total','probability','chi']])
 

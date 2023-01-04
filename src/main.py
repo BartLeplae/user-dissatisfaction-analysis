@@ -28,6 +28,7 @@ import argparse
 import time
 from incidents_from_odbc import get_incidents_from_db
 from stats import chi2_stats, binom_stats
+from transform_attributes import transform_df_upon_chi2, transform_df_upon_review_values, df_create_dummies
 
 def get_project_root() -> Path:
     """Get the root of the current project."""
@@ -68,58 +69,39 @@ if __name__ == "__main__":
         
     # Perfrom chi2 test to identify the relevant factors (columns) and write the factors to an excel file for further analysis
     df_factors = chi2_stats(df_incidents)
-    
-    # Ignore the factors for which the p value is greater than 5%
-    df_factors.loc[(df_factors['variable_type']=="analyse")&(df_factors['p']>0.05),"variable_type"] = "ignore"
-
-    # Perform secondary analysis when number of values > 20 (application, resolving group, ...)
-    df_factors.loc[(df_factors['variable_type']=="analyse")&(df_factors['unique_values']>20),"variable_type"] = "analyse2"  
-
-    # Write factors to Excel
-    factors_data_file = output_dir / f"factors.xlsx"
+    factors_data_file = output_dir / f"factors_1.xlsx"
     df_factors.to_excel(factors_data_file,index=False)
 
-    # Write factor values to Excel
+    # Transform the data based on review of "factors1.xlsx" and generate "factors2.xlsx"
+    df_factors = transform_df_upon_chi2 (df_factors)
+    factors_data_file = output_dir / f"factors_2.xlsx"
+    df_factors.to_excel(factors_data_file,index=False)
+
+    # Evaluate the individual values for each factor and write to "factor_values1.xlsx"
     df_satisfaction = binom_stats(df_incidents, df_factors)
-    factor_values_data_file = output_dir / f"factor_values.xlsx"
+    factor_values_data_file = output_dir / f"factor_values_1.xlsx"
     df_satisfaction.to_excel(factor_values_data_file, index=False)
 
-    # UPON review of factor_values.xlsx:
-    # Considering the similarities in dissatisfaction ratio and limited total, limit ttr_days_log to 5 
-    df_incidents.loc[df_incidents['ttr_days_log']>5,'ttr_days_log']=5
+    # Transform the data upon review of factor_values1.xlsx:
+    df_incidents, df_factors = transform_df_upon_review_values(df_incidents, df_factors)
 
-    # Ignore the ttr_days for subsequent analysis
-    df_factors.loc[(df_factors['factor']=="ttr_days"),"variable_type"] = "ignore"
-
-    # Add sla_result == "Unknown" to "Achieved" given the low number of records
-    df_incidents.loc[df_incidents['sla_result']=="Unknown",'sla_result']="Achieved"
-
-    # Limit reassignment count to given the low values for higher reassignment counts
-    df_incidents.loc[df_incidents['reassignment_count']>4,'reassignment_count']=4
-
-    # Reclassify close codes with less than 150 tickets to 'Environmental Restoration'
-    df_incidents.loc[df_incidents['close_code'].isin(
-        ['Capacity Adjustment','Hardware Correction','Redundancy Activation']),'close_code']="Environmental Restoration"
-
-    # plan assignment_group_company secondary analysis
-    df_factors.loc[(df_factors['factor']=="assignment_group_company"),"variable_type"] = "analysis2"
-
-    # Reclassify sla_priority 'VIP' to 'Priority 3' given the low number of records
-    df_incidents.loc[df_incidents['sla_priority']=="VIP",'sla_priority']="Priority 3"
-
-    # Ignore the ka_count_log for subsequent analysis given the lack of correlation with dissatisfaction
-    df_factors.loc[(df_factors['factor']=="ka_count_log"),"variable_type"] = "ignore"
-
-    # Ignore the contact_type for subsequent analysis since 'self_service' is a better differentiator
-    df_factors.loc[(df_factors['factor']=="contact_type"),"variable_type"] = "ignore"
-
-    # Ignore the breached_reason_code for subsequent analysis since values are insufficiently differentiated or have low occurences
-    df_factors.loc[(df_factors['factor']=="breached_reason_code"),"variable_type"] = "ignore"
-
-    # Ignore the appl_tier for subsequent analysis since values are insufficiently differentiated or have low occurences
-    df_factors.loc[(df_factors['factor']=="appl_tier"),"variable_type"] = "ignore"
-
-    # Write adjusted factor values to new Excel file
+    # For every value, determine the correlation with customer dissatisfaction, write ordered df to factor_values_2.xlsx
     df_satisfaction = binom_stats(df_incidents, df_factors)
     factor_values_data_file = output_dir / f"factor_values_2.xlsx"    
     df_satisfaction.to_excel(factor_values_data_file, index=False)   
+
+    # Create dummies for the fields containing multiple categorical values
+    df_incidents, df_factors = df_create_dummies(df_incidents, df_factors)
+    factors_data_file = output_dir / f"factors_3.xlsx"
+    df_factors.to_excel(factors_data_file,index=False)
+
+    # Determine the variables to be used for modelling
+    df_modelling_vars = df_factors[df_factors['variable_type'].isin(["analyse"])].factor.values
+    print(df_modelling_vars)
+    
+    for index, row in df_factors[df_factors['variable_type'].isin(["one_hot_encoded"])].iterrows():
+        df_one_hot = df_satisfaction[df_satisfaction['factor']==row["factor"]]
+        for index2, row2 in df_one_hot.iterrows():
+            print(row2["factor"]+"_"+row2["value"])
+
+    
