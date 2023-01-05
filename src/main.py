@@ -16,7 +16,8 @@ Input:
     - Regression Model
     
 Output:
-    - Excel file with ...
+    - Excel files factors_1, factors_2, ... with a list of the factors and their attributes
+    - Excel files factor_values_1, ... with the list of factor - value combinations
 """
 
 import pandas as pd
@@ -28,7 +29,7 @@ import argparse
 import time
 from incidents_from_odbc import get_incidents_from_db
 from stats import chi2_stats, binom_stats
-from transform_attributes import transform_df_upon_chi2, transform_df_upon_review_values, df_create_dummies
+from transform_attributes import transform_df_upon_chi2, transform_df_upon_review_values, df_create_dummies, create_Xy
 
 def get_project_root() -> Path:
     """Get the root of the current project."""
@@ -37,9 +38,6 @@ def get_project_root() -> Path:
 sys.path.append(Path(__file__).parent.parent.parent.__str__())   # Fix for 'no module named src' error
 
 if __name__ == "__main__":
-    # Ignore annoying warning
-    # warnings.simplefilter(action='ignore', category=FutureWarning)
-    # warnings.simplefilter(action='ignore', category=ConvergenceWarning)
 
     # Make timestamp for timing
     global_start = time.time()
@@ -67,41 +65,40 @@ if __name__ == "__main__":
         print("Read incidents from ", incident_data_file)
         df_incidents = pd.read_excel(incident_data_file)
         
-    # Perfrom chi2 test to identify the relevant factors (columns) and write the factors to an excel file for further analysis
+    # Perfrom chi2 test to identify the relevant factors (columns) and write the factors to an excel file for further manua analysis
     df_factors = chi2_stats(df_incidents)
     factors_data_file = output_dir / f"factors_1.xlsx"
     df_factors.to_excel(factors_data_file,index=False)
 
-    # Transform the data based on review of "factors1.xlsx" and generate "factors2.xlsx"
+    # Transform the data based on a manual review of "factors1.xlsx"
     df_factors = transform_df_upon_chi2 (df_factors)
     factors_data_file = output_dir / f"factors_2.xlsx"
     df_factors.to_excel(factors_data_file,index=False)
 
-    # Evaluate the individual values for each factor and write to "factor_values1.xlsx"
-    df_satisfaction = binom_stats(df_incidents, df_factors)
+    # List the individual values for each factor along with their correlation with user dissatisfaction and write to "factor_values1.xlsx"
+    df_factor_values = binom_stats(df_incidents, df_factors)
     factor_values_data_file = output_dir / f"factor_values_1.xlsx"
-    df_satisfaction.to_excel(factor_values_data_file, index=False)
+    df_factor_values.to_excel(factor_values_data_file, index=False)
 
-    # Transform the data upon review of factor_values1.xlsx:
+    # Transform the incident data upon review of factor_values1.xlsx:
     df_incidents, df_factors = transform_df_upon_review_values(df_incidents, df_factors)
 
-    # For every value, determine the correlation with customer dissatisfaction, write ordered df to factor_values_2.xlsx
-    df_satisfaction = binom_stats(df_incidents, df_factors)
+    # For every value, determine the correlation with customer dissatisfaction after transformation, write ordered df to factor_values_2.xlsx
+    df_factor_values = binom_stats(df_incidents, df_factors)
     factor_values_data_file = output_dir / f"factor_values_2.xlsx"    
-    df_satisfaction.to_excel(factor_values_data_file, index=False)   
+    df_factor_values.to_excel(factor_values_data_file, index=False)   
 
-    # Create dummies for the fields containing multiple categorical values
+    # Create dummies for the fields containing multiple categorical values, write ordered df to factor_3.xlsx
     df_incidents, df_factors = df_create_dummies(df_incidents, df_factors)
     factors_data_file = output_dir / f"factors_3.xlsx"
     df_factors.to_excel(factors_data_file,index=False)
 
-    # Determine the variables to be used for modelling
-    df_modelling_vars = df_factors[df_factors['variable_type'].isin(["analyse"])].factor.values
-    print(df_modelling_vars)
+    # Create X and y with maximum of Z factors
+    Z_MAX = 100
+    X, y = create_Xy(df_incidents, df_factors, Z_MAX)
+    print(X)
+
     
-    for index, row in df_factors[df_factors['variable_type'].isin(["one_hot_encoded"])].iterrows():
-        df_one_hot = df_satisfaction[df_satisfaction['factor']==row["factor"]]
-        for index2, row2 in df_one_hot.iterrows():
-            print(row2["factor"]+"_"+row2["value"])
+
 
     

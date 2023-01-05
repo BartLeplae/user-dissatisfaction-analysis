@@ -1,17 +1,14 @@
 """ transform_attributes:
-
-    - Modifies / transforms incident ticket attributes at different stages of the process
-
+    Modifies / transforms incident ticket dataframes at different stages of the review process
 Input:
     - dataframe with incident tickets
-    - dataframe with factors (list columns of interest)
-    
+    - dataframe with factors (list columns of interest)    
 Output:
     - modified incident ticket and factor dataframes
 """
 import pandas as pd
 import numpy as np
-
+from stats import chi2_stats, binom_stats
 
 def transform_df_upon_db_retrieval (df):
     """ transform dataframe as retrieved from the database
@@ -56,9 +53,9 @@ def transform_df_upon_db_retrieval (df):
     return df
 
 def transform_df_upon_chi2 (df_factors):
-    """ transform dataframe as retrieved from the database
+    """ transform dataframe upon review of chi2 values
     Input: dataframe with the factors (columns of interest)
-    Returns: modified dataframe
+    Returns: modified factors dataframe
     """
     # Ignore the factors for which the p value is greater than 5%
     df_factors.loc[(df_factors['variable_type']=="analyse")&(df_factors['p']>0.05),"variable_type"] = "ignore"
@@ -69,9 +66,9 @@ def transform_df_upon_chi2 (df_factors):
     return (df_factors)
 
 def transform_df_upon_review_values (df_incidents, df_factors):
-    """ transform dataframe as retrieved from the database
-    Input: dataframe with the factors (columns of interest)
-    Returns: modified dataframe
+    """ transform incident and factors dataframes upon review of the individual values
+    Input: dataframes with the incidents, dataframe with factors (columns of interest)
+    Returns: modified dataframes
     """
     # Considering the similarities in dissatisfaction ratio and limited total, limit ttr_days_log to 5 
     df_incidents.loc[df_incidents['ttr_days_log']>5,'ttr_days_log']=5
@@ -87,7 +84,7 @@ def transform_df_upon_review_values (df_incidents, df_factors):
         ['Capacity Adjustment','Hardware Correction','Redundancy Activation']),'close_code']="Environmental Restoration"
 
     # plan assignment_group_company secondary analysis
-    df_factors.loc[(df_factors['factor']=="assignment_group_company"),"variable_type"] = "analysis2"
+    df_factors.loc[(df_factors['factor']=="assignment_group_company"),"variable_type"] = "analyse2"
 
     # Ignore the ka_count_log for subsequent analysis given the lack of correlation with dissatisfaction
     df_factors.loc[(df_factors['factor']=="ka_count_log"),"variable_type"] = "ignore"
@@ -105,6 +102,26 @@ def transform_df_upon_review_values (df_incidents, df_factors):
 
 
 def df_create_dummies (df_incidents, df_factors):
+    """ create dummy columns in df_incidents
+    Input: dataframe with the incidents, dataframe with the factors (columns of interest)
+    Returns: modified df_incident and df_factors dataframes
+    """
     df_incidents = df_incidents.join(pd.get_dummies(df_incidents['close_code'], prefix='close_code'))
     df_factors.loc[(df_factors['factor']=="close_code"),"variable_type"] = "one_hot_encoded"
+    df_factors = pd.concat([df_factors, chi2_stats(df_incidents)])
+    df_factors.drop_duplicates(subset='factor', keep='first', inplace=True)
+    df_factors.sort_values(by=['chi'],ascending=False,inplace=True)
     return (df_incidents, df_factors)
+
+def create_Xy (df_incidents, df_factors, max_factors):
+    """ subset the columns of df_incidents to those identified as 'analyse' in factors
+    Input: dataframe with the incidents, dataframe with the factors, maximum number of factors to consider
+    Returns: modified df_incident and df_factors dataframes
+    """
+    X_columns = df_factors[df_factors['variable_type']=='analyse'].factor
+    X_columns = X_columns[:max_factors]
+
+    X = df_incidents[X_columns]
+    y_column = df_factors[df_factors['variable_type']=='response'].factor
+    y = df_incidents[y_column]
+    return X, y
