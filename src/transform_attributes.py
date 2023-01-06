@@ -15,7 +15,7 @@ def transform_df_upon_db_retrieval (df):
     Input: dataframe with incident tickets
     Returns: modified dataframe
     """
-    # Determinae the log2 of the number of times a knowledge article has been utilized
+    # Determine the log2 of the number of times a knowledge article has been utilized
     df['ka_count'].fillna(0,inplace=True)
     df['ka_count_log'] = np.ceil(np.log2(df['ka_count']+1)/2)
     df.drop(columns='ka_count', inplace=True)
@@ -120,8 +120,9 @@ def create_Xy (df_incidents, df_factors, max_factors):
     """
     X_columns = df_factors[df_factors['variable_type']=='analyse'].factor
     X_columns = X_columns[:max_factors]
+    X = np.array(df_incidents[X_columns])
 
-    X = df_incidents[X_columns]
     y_column = df_factors[df_factors['variable_type']=='response'].factor
-    y = df_incidents[y_column]
+    y = np.array (df_incidents[y_column]).squeeze()
+
     return X, y

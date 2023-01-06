@@ -30,6 +30,7 @@ import time
 from incidents_from_odbc import get_incidents_from_db
 from stats import chi2_stats, binom_stats
 from transform_attributes import transform_df_upon_chi2, transform_df_upon_review_values, df_create_dummies, create_Xy
+from model import DecisionTree
 
 def get_project_root() -> Path:
     """Get the root of the current project."""
@@ -93,12 +94,12 @@ if __name__ == "__main__":
     factors_data_file = output_dir / f"factors_3.xlsx"
     df_factors.to_excel(factors_data_file,index=False)
 
-    # Create X and y with maximum of Z factors
+    # Create X and y with maximum of Z factors and apply to DecisionTree (used as regression model)
     Z_MAX = 100
     X, y = create_Xy(df_incidents, df_factors, Z_MAX)
-    print(X)
 
-    
+
+    model = DecisionTree(X,y)
 
 
     
