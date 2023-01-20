@@ -9,23 +9,19 @@ Output:
 import pandas as pd
 import numpy as np
 from stats import chi2_stats, binom_stats
+from unique_names_generator import get_random_name
+from unique_names_generator.data import NAMES, STAR_WARS, ANIMALS
+import random as random
 
 def transform_df_upon_db_retrieval (df):
     """ transform dataframe as retrieved from the database
     Input: dataframe with incident tickets
     Returns: modified dataframe
     """
-    # Determine the log2 of the number of times a knowledge article has been utilized
-    df['ka_count'].fillna(0,inplace=True)
-    df['ka_count_log'] = np.ceil(np.log2(df['ka_count']+1)/2)
-    df.drop(columns='ka_count', inplace=True)
-
-    # Transform time to resolve the incidents to logaritmic scale (based on number of days)
-    df['ttr_days_log']=np.round(np.log2(1+df['am_ttr']/(24*3600))).astype('int')
     
-    # Transorm time to resolve from seconds to days
-    df['ttr_days']=np.round(1+df['am_ttr']/(24*3600)).astype('int')
-    df.loc[df['ttr_days']>20,'ttr_days']=20
+    # Transorm time to resolve from seconds to days and truncate to 15 days
+    df['days_to_resolve']=np.round(df['am_ttr']/(24*3600)).astype('int')
+    df.loc[df['days_to_resolve']>15,'days_to_resolve']=15 
     df.drop(columns='am_ttr', inplace=True) # drop time to resolve in seconds
     
     # user is dissatisfied when survey response value is 1 or 2
@@ -50,6 +46,30 @@ def transform_df_upon_db_retrieval (df):
     df.loc[df['sla_priority']=="Priority 4",'priority_is_4']=1
     df = df.drop(columns='sla_priority')
 
+    # anonymise company
+    df["assignment_group_company"].fillna("None",inplace=True)   
+    companies = df["assignment_group_company"].unique()
+    df_companies = pd.DataFrame(data={"assignment_group_company":companies,"company":""})
+    df_companies["company"] = df_companies.apply(lambda x: "C"+str(random.randint(10000,99999)), axis=1)
+    df = pd.merge(df,df_companies, on="assignment_group_company")
+    df.drop(columns=["assignment_group_company"],inplace=True)
+
+    # anonymise assignment group
+    df["assignment_group_name"].fillna("None",inplace=True)
+    groups = df["assignment_group_name"].unique()
+    df_groups = pd.DataFrame(data={"assignment_group_name":groups,"group":""})
+    df_groups["group"] = df_groups.apply(lambda x: "G"+str(random.randint(10000,99999)), axis=1)
+    df = pd.merge(df,df_groups, on="assignment_group_name")
+    df.drop(columns=["assignment_group_name"],inplace=True)
+
+    # anonymise application name
+    df["ci_name"].fillna("None",inplace=True)
+    applications = df["ci_name"].unique()
+    df_applications = pd.DataFrame(data={"ci_name":applications,"application":""})
+    df_applications["application"] = df_applications.apply(lambda x: "A"+str(random.randint(10000,99999)), axis=1)
+    df = pd.merge(df,df_applications, on="ci_name")
+    df.drop(columns=["ci_name"],inplace=True)
+    
     return df
 
 def transform_df_upon_chi2 (df_factors):
@@ -70,11 +90,6 @@ def transform_df_upon_review_values (df_incidents, df_factors):
     Input: dataframes with the incidents, dataframe with factors (columns of interest)
     Returns: modified dataframes
     """
-    # Considering the similarities in dissatisfaction ratio and limited total, limit ttr_days_log to 5 
-    df_incidents.loc[df_incidents['ttr_days_log']>5,'ttr_days_log']=5
-
-    # Ignore the ttr_days for subsequent analysis
-    df_factors.loc[(df_factors['factor']=="ttr_days"),"variable_type"] = "ignore"
 
     # Limit reassignment count to given the low values for higher reassignment counts
     df_incidents.loc[df_incidents['reassignment_count']>4,'reassignment_count']=4
@@ -84,7 +99,7 @@ def transform_df_upon_review_values (df_incidents, df_factors):
         ['Capacity Adjustment','Hardware Correction','Redundancy Activation']),'close_code']="Environmental Restoration"
 
     # plan assignment_group_company secondary analysis
-    df_factors.loc[(df_factors['factor']=="assignment_group_company"),"variable_type"] = "analyse2"
+    df_factors.loc[(df_factors['factor']=="company"),"variable_type"] = "analyse2"
 
     # Ignore the ka_count_log for subsequent analysis given the lack of correlation with dissatisfaction
     df_factors.loc[(df_factors['factor']=="ka_count_log"),"variable_type"] = "ignore"
@@ -113,16 +128,15 @@ def df_create_dummies (df_incidents, df_factors):
     df_factors.sort_values(by=['chi'],ascending=False,inplace=True)
     return (df_incidents, df_factors)
 
-def create_Xy (df_incidents, df_factors, max_factors):
+def create_Xy (df_incidents, df_factors):
     """ subset the columns of df_incidents to those identified as 'analyse' in factors
     Input: dataframe with the incidents, dataframe with the factors, maximum number of factors to consider
     Returns: modified df_incident and df_factors dataframes
     """
     X_columns = df_factors[df_factors['variable_type']=='analyse'].factor
-    X_columns = X_columns[:max_factors]
     X = np.array(df_incidents[X_columns])
 
     y_column = df_factors[df_factors['variable_type']=='response'].factor
     y = np.array (df_incidents[y_column]).squeeze()
 
-    return X, y
+    return X, y, X_columns

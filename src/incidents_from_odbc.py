@@ -19,9 +19,15 @@ def as_pandas_DataFrame(cursor):
 def get_incidents_from_db(
     incident_file: str,
 ) -> pd.DataFrame:
+    """ Retrieve the Incidents that contain a customer survey resonse from the data lake
+        Create connection to EDL through ODBC
+    Input:
+        - File to which to store the retrieved data
+    Output:
+        - Dataframe with the data retrieved from the data lake
+    """
 
-    # Retrieve the Incidents that contain a customer survey resonse
-    # Create connection to EDL through ODBC
+    # Connect through ODBC as defined on the machine where this code is run
     conn = pyodbc.connect(f'DSN=ODBC Impala', autocommit=True)
 
     # Get cursor to interact with the SQL engine
@@ -32,10 +38,10 @@ def get_incidents_from_db(
     Query = """
     select close_code, 
     breached_reason_code,
-    contact_type, self_service, incident_reopened_flag, 
+    contact_type, self_service, incident_reopened_flag reopened, 
     sla_result, sla_priority, 
     am_ttr,
-    incident_has_ka_related_flag,
+    incident_has_ka_related_flag has_knowledge_article,
     reassignment_count,
     appl_tier, 
     caller_vip, caller_employee_type, 
@@ -49,24 +55,6 @@ def get_incidents_from_db(
 
     cursor.execute(Query)
     df = as_pandas_DataFrame(cursor) # Convert result set into pandas DataFrame
-
-    # Determine the number of times the knowledge article has been applied
-    Query = """
-    select kcs_solution, count(*) as ka_count
-    from datamart_core.dm_incidentcube where kcs_solution in (
-    select distinct kcs_solution
-    from datamart_core.dm_incidentcube where assignment_group_parent in ('PARENT APP MAINTENANCE', 'PARENT APP SERVICES SUPPORT')
-    and resolved_date_utc > date_sub(now(),365))
-    group by kcs_solution
-    """
-
-    cursor.execute(Query)
-    df_ka_count = as_pandas_DataFrame(cursor) # Convert result set into pandas DataFrame
-
-    conn.close() # Close connection
-
-    # Add the number of times a knowledge article has been used
-    df = pd.merge(df,df_ka_count, on = 'kcs_solution', how='left' )
 
     # Transform the dataframe
     df = transform_df_upon_db_retrieval (df)

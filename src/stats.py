@@ -1,5 +1,5 @@
 """ stats:
-    Apply statistics on the incident tickets and keep or update results in factors dataframe
+    Apply statistics on the incident tickets and store results in factors dataframe
 Input:
     - dataframe with incident tickets
     - dataframe with factors 
@@ -53,7 +53,6 @@ def binom_stats(df, df_factors):
     Input: dataframe with incident tickets, dataframe with the factors
     Returns: dataframe with factor - value combinations
     """
-    P_DISSATISFACTION = df['user_dissatisfied'].mean() # Overall probability of dissatisfied response
 
     df_factor_values = pd.DataFrame()
 
@@ -69,14 +68,8 @@ def binom_stats(df, df_factors):
     df_factor_values = df_factor_values.reset_index()
     df_factor_values['total']=df_factor_values['satisfied_count']+df_factor_values['dissatisfied_count']
     df_factor_values['dissatisfied_ratio'] = df_factor_values['dissatisfied_count']/df_factor_values['total']
-    df_factor_values['probability'] = df_factor_values.apply(lambda x: scipy.stats.binom.cdf(k=x['dissatisfied_count'],n=x['total'],p=P_DISSATISFACTION ), axis=1)
-    
-    # add the factor attributes to the factor-value combinations
-    df_factor_values = pd.merge(df_factor_values, df_factors, on='factor', how='left')
-    
-    # sort the factor-value combinations so that the most differentiating factors are listed first
-    df_factor_values.sort_values(by=['chi','factor','dissatisfied_ratio'],ascending=[False,False,False],inplace=True)
 
-    # return factor-value combinations along with the attributes of interest
-    return(df_factor_values[['factor','value','dissatisfied_ratio','satisfied_count','dissatisfied_count','total','probability','chi']])
+    return(df_factor_values)
+    
+
 
