@@ -46,9 +46,9 @@ def chi2_stats(df: pd.DataFrame) -> pd.DataFrame :
     return df_factors
 
 
-def binom_stats(df, df_factors):
-    """ apply cumulative binomial statistic on the distinct columns values of the incident tickets
-        count the number of tickets for satisfied and dissatisfied responses
+def ratio_stats(df, df_factors):
+    """ count the number of tickets for satisfied and dissatisfied responses
+        for every of the given factors
         determine the ratio of dissatisfied responses
     Input: dataframe with incident tickets, dataframe with the factors
     Returns: dataframe with factor - value combinations
@@ -71,5 +71,18 @@ def binom_stats(df, df_factors):
 
     return(df_factor_values)
     
+def binom_stats(df, avg_dissatisfaction,alpha,minimum_dissatisfied):
+    """ apply cumulative binomial statistic on every row of the dataframe
+    Input: dataframe for row for every application
+    Returns: dataframe with additional column "pvalue"
+    """
 
+    df["pvalue"] = df.apply(lambda x: scipy.stats.binomtest(int(x["dissatisfied count"]), 
+                                                            int(x["total count"]), 
+                                                            p=avg_dissatisfaction, 
+                                                            alternative='greater').pvalue, axis=1)
 
+    df["relevant"]=True
+    df.loc[df["pvalue"]>=alpha,"relevant"]=False
+    df.loc[df["dissatisfied count"]<minimum_dissatisfied,"relevant"]=False
+    return(df)

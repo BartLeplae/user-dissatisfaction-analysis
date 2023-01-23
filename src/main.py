@@ -32,7 +32,8 @@ from pathlib import Path
 import argparse
 import time
 from incidents_from_odbc import get_incidents_from_db
-from stats import chi2_stats, binom_stats
+from stats import chi2_stats, ratio_stats, binom_stats
+from output import plot_factor_values, create_ordered_excel, write_ordered_plot
 from transform_attributes import transform_df_upon_chi2, transform_df_upon_review_values, df_create_dummies, create_Xy
 from model import DecisionTree
 import matplotlib.pyplot as plt
@@ -83,7 +84,7 @@ if __name__ == "__main__":
     df_factors.to_excel(factors_data_file,index=False)
 
     # List the individual values for each factor along with their correlation with user dissatisfaction and write to "factor_values1.xlsx"
-    df_factor_values = binom_stats(df_incidents, df_factors)
+    df_factor_values = ratio_stats(df_incidents, df_factors)
     df_factor_values = pd.merge(df_factors, df_factor_values, on = 'factor', how='right')
     df_factor_values.sort_values(by=['chi', 'factor','dissatisfied_ratio'],ascending=[False,True,False],inplace=True)
     factor_values_data_file = output_dir / f"factor_values.xlsx"
@@ -93,7 +94,7 @@ if __name__ == "__main__":
     df_incidents, df_factors = transform_df_upon_review_values(df_incidents, df_factors)
 
     # For every value, determine the correlation with customer dissatisfaction after transformation, write ordered df to factor_values_2.xlsx
-    df_factor_values = binom_stats(df_incidents, df_factors)
+    df_factor_values = ratio_stats(df_incidents, df_factors)
     df_factor_values = pd.merge(df_factors, df_factor_values, on = 'factor', how='right')
     df_factor_values.sort_values(by=['chi', 'factor','dissatisfied_ratio'],ascending=[False,True,False],inplace=True)
     factor_values_data_file = output_dir / f"factor_values.xlsx"    
@@ -123,7 +124,7 @@ if __name__ == "__main__":
     df_factors.to_excel(factors_data_file,index=False)
 
     # For every value, determine the correlation with customer dissatisfaction after transformation, write ordered df to factor_values_3.xlsx
-    df_factor_values = binom_stats(df_incidents, df_factors)
+    df_factor_values = ratio_stats(df_incidents, df_factors)
     df_factor_values = pd.merge(df_factors, df_factor_values, on = 'factor', how='right')
 
     # Compute the average predicted satisfaction rating
@@ -146,32 +147,13 @@ if __name__ == "__main__":
 
     df_factor_values["factor_value"] =  df_factor_values["factor"] + ": " + df_factor_values["value"].astype(str)
     df_factor_values.sort_values(by=['feature_importance','chi', 'factor','value'],ascending=[False,False,True,True],inplace=True)
-    factor_values_data_file = output_dir / f"factor_values.xlsx"    
+    factor_values_data_file = output_dir / f"01 factor_values.xlsx"    
     df_factor_values.to_excel(factor_values_data_file, index=False)   
 
-    #create horizontal bar chart
-    fig, ax = plt.subplots(figsize=(10, 10))
-    sns.barplot(x=df_factor_values.dissatisfied_ratio, y=df_factor_values.factor_value, orient='h')
-    plt.axvline(avg_dissatisfaction)
-    plt.title('Dissatisfaction Ratio')
-    plt.xlabel('Dissatisfaction %')
-    plt.ylabel('Factor + Value')
-    plt.tight_layout()
-    dissatisfaction_ratio_file = output_dir / f"Dissatisfaction Ratio.png"    
-    plt.savefig(dissatisfaction_ratio_file, dpi=300)
-    # plt.show()
+    plot_factor_values(df_factor_values, avg_dissatisfaction, output_dir)
 
-    fig, ax = plt.subplots(figsize=(10, 10))
-    sns.barplot(x=df_factor_values.predicted_dissatisfaction_delta, y=df_factor_values.factor_value, orient='h')
-    plt.axvline(0)
-    plt.title('Dissatisfaction Delta')
-    plt.xlabel('Dissatisfaction Delta %')
-    plt.ylabel('Factor + Value')
-    plt.tight_layout()
-    dissatisfaction_dissatisfaction_delta_file = output_dir / f"Predicted dissatisfaction_delta.png"    
-    plt.savefig(dissatisfaction_dissatisfaction_delta_file, dpi=300)
 
-    # Write an ordered list of the most impactful factors
+    # Create an ordered list of the most impactful factors
     # "predicted_dissatisfaction_delta" is the predicted reduction in disatisfaction if the factor is eliminated (value associated with the factor = 0)
     # we are interested in factors that increase dissatisfaction: so look for negative values and eliminate the - sign these for reporting
     df_most_impactful_factors = df_factor_values[(df_factor_values["predicted_dissatisfaction_delta"]<0) & (df_factor_values["value"]==0)].copy()
@@ -181,84 +163,30 @@ if __name__ == "__main__":
     # Merge "predicted_dissatisfaction_delta" with the factors
     df_factors = pd.merge(df_factors, df_most_impactful_factors[["factor","predicted_dissatisfaction_delta"]], on = 'factor', how='left')
     df_factors.sort_values(by=['predicted_dissatisfaction_delta','feature_importance','chi','p'],ascending=[False,False,False,True],inplace=True)
-    factors_data_file = output_dir / f"factors.xlsx"
+    factors_data_file = output_dir / f"00 factors.xlsx"
     df_factors.to_excel(factors_data_file,index=False)
 
-    # Write the predicted effects for all incident tickets to "incidents_dissatisfaction_pred.xlsx"    
-    # incident_result_data_file = output_dir / f"incidents_dissatisfaction_pred.xlsx"    
-    # df_incidents.to_excel(incident_result_data_file, index=False)
+    # Write Excel files ordered by statistical relevance 
+    create_ordered_excel(df_incidents, ["company"], avg_dissatisfaction, output_dir / f"10 Support Company Dissatisfaction.xlsx")
+    create_ordered_excel(df_incidents, ["company","group"], avg_dissatisfaction, output_dir / f"11 Support Group Dissatisfaction.xlsx")
+    create_ordered_excel(df_incidents, ["company","group","application"], avg_dissatisfaction, output_dir / f"12 Application Dissatisfaction.xlsx")
+       
+    # Write barcharts for the differentiating attributes 
+    write_ordered_plot(df_incidents, ["close_code_Information Provided / Training"], avg_dissatisfaction, output_dir / f"20 Information Provided Dissatisfaction.png",150)    
+    write_ordered_plot(df_incidents, ["reassignment_count"], avg_dissatisfaction, output_dir / f"21 Reassignment Dissatisfaction.png",150)    
+    write_ordered_plot(df_incidents, ["caller_is_employee"], avg_dissatisfaction, output_dir / f"22 Employee Dissatisfaction.png",150)
+    write_ordered_plot(df_incidents, ["has_knowledge_article"], avg_dissatisfaction, output_dir / f"23 Knowledge Article Dissatisfaction.png",150)
+    write_ordered_plot(df_incidents, ["close_code_Data Correction"], avg_dissatisfaction, output_dir / f"24 Data Correction Dissatisfaction.png",150)
+    write_ordered_plot(df_incidents, ["sla_breached"], avg_dissatisfaction, output_dir / f"25 SLA Breached Dissatisfaction.png",150)
+    write_ordered_plot(df_incidents, ["self_service"], avg_dissatisfaction, output_dir / f"26 Self Service Dissatisfaction.png",150)
+    write_ordered_plot(df_incidents, ["priority_is_4"], avg_dissatisfaction, output_dir / f"27 Priority 4 Dissatisfaction.png",150)
+    write_ordered_plot(df_incidents, ["close_code_Reboot / Restart"], avg_dissatisfaction, output_dir / f"28 Reboot Dissatisfaction.png",150)
+    write_ordered_plot(df_incidents, ["close_code_Security Modification"], avg_dissatisfaction, output_dir / f"29 Security Modification Dissatisfaction.png",150)
+    write_ordered_plot(df_incidents, ["close_code_Software Correction"], avg_dissatisfaction, output_dir / f"30 Software Correction Dissatisfaction.png",150)
+    write_ordered_plot(df_incidents, ["close_code_Environmental Restoration"], avg_dissatisfaction, output_dir / f"31 Environmental Restoration Dissatisfaction.png",150)    
 
-    # Create graph with a comparison of user dissatisfaction per supporting company and corresponding causal factors
-    # Limit to support companies with more than 1000 survey responses
-    company_analysis_avg = pd.pivot_table(data=df_incidents, index="company", 
-                        values=["user_dissatisfied","pred_reopened_0.0","pred_days_to_resolve_0.0","pred_close_code_No Resolution Action_0.0"],
-                        aggfunc='mean'
-                        )
-    company_analysis_avg.reset_index(inplace=True)
-
-    company_analysis_count = pd.pivot_table(data=df_incidents, index="company", 
-                        values=["application"],
-                        aggfunc='count'
-                        )
-    company_analysis_count.reset_index(inplace=True)
-
-    company_analysis = pd.merge(company_analysis_count, company_analysis_avg)
-    company_analysis = company_analysis[company_analysis["application"]>1000]
-    company_analysis = company_analysis[["company","user_dissatisfied","pred_reopened_0.0","pred_days_to_resolve_0.0","pred_close_code_No Resolution Action_0.0"]].set_index('company')
-    company_analysis.sort_values(by="user_dissatisfied", inplace=True, ascending=False)
-    company_analysis.columns=["dissatisfaction%","reopened","resolution_time","no_resolution"]
-    company_analysis.plot(kind='barh', stacked=True )
-    
-    plt.axvline(avg_dissatisfaction, color='r')
-    company_dissatisfaction_ratio_file = output_dir / f"Company Dissatisfaction Ratio.png"  
-    plt.savefig(company_dissatisfaction_ratio_file, dpi=300) 
-
-    # Create graph with a comparison of user dissatisfaction per support group and corresponding causal factors
-    # Limit to support groups with more than 200 survey responses
-    group_analysis_avg = pd.pivot_table(data=df_incidents, index="group", 
-                        values=["user_dissatisfied","pred_reopened_0.0","pred_days_to_resolve_0.0","pred_close_code_No Resolution Action_0.0"],
-                        aggfunc='mean'
-                        )
-    group_analysis_avg.reset_index(inplace=True)
-
-    group_analysis_count = pd.pivot_table(data=df_incidents, index="group", 
-                        values=["application"],
-                        aggfunc='count'
-                        )
-    group_analysis_count.reset_index(inplace=True)
-    group_analysis = pd.merge(group_analysis_count, group_analysis_avg)
-    group_analysis = group_analysis[group_analysis["application"]>200]
-    group_analysis = group_analysis[["group","user_dissatisfied","pred_reopened_0.0","pred_days_to_resolve_0.0","pred_close_code_No Resolution Action_0.0"]].set_index('group')
-    group_analysis.sort_values(by="user_dissatisfied", inplace=True, ascending=False)
-    group_analysis.columns=["dissatisfaction%","reopened","resolution_time","no_resolution"]
-    group_analysis.plot(kind='barh', stacked=True )
-    plt.axvline(avg_dissatisfaction, color='r')
-    group_dissatisfaction_ratio_file = output_dir / f"Group Dissatisfaction Ratio.png"  
-    plt.savefig(group_dissatisfaction_ratio_file, dpi=300) 
-    
-    # Create graph with a comparison of user dissatisfaction per application and corresponding causal factors
-    # Limit to applications with more than 150 survey responses
-    application_analysis_avg = pd.pivot_table(data=df_incidents, index="application", 
-                        values=["user_dissatisfied","pred_reopened_0.0","pred_days_to_resolve_0.0","pred_close_code_No Resolution Action_0.0"],
-                        aggfunc='mean'
-                        )
-    application_analysis_avg.reset_index(inplace=True)
-
-    application_analysis_count = pd.pivot_table(data=df_incidents, index="application", 
-                        values=["group"],
-                        aggfunc='count'
-                        )
-    application_analysis_count.reset_index(inplace=True)
-    application_analysis = pd.merge(application_analysis_count, application_analysis_avg)
-    application_analysis = application_analysis[application_analysis["group"]>150]
-    application_analysis = application_analysis[["application","user_dissatisfied","pred_reopened_0.0","pred_days_to_resolve_0.0","pred_close_code_No Resolution Action_0.0"]].set_index('application')
-    application_analysis.sort_values(by="user_dissatisfied", inplace=True, ascending=False)
-    application_analysis.columns=["dissatisfaction%","reopened","resolution_time","no_resolution"]
-    application_analysis.plot(kind='barh', stacked=True )
-    plt.axvline(avg_dissatisfaction, color='r')
-    application_dissatisfaction_ratio_file = output_dir / f"application Dissatisfaction Ratio.png"  
-    plt.savefig(application_dissatisfaction_ratio_file, dpi=300) 
-
-
-
+    # Write barcharts for company, group and application
+    write_ordered_plot(df_incidents, ["company"], avg_dissatisfaction, output_dir / f"51 Support Company Dissatisfaction.png",1000)
+    write_ordered_plot(df_incidents, ["group"], avg_dissatisfaction, output_dir / f"52 Support Group Dissatisfaction.png",200)
+    write_ordered_plot(df_incidents, ["application"], avg_dissatisfaction, output_dir / f"53 Support App Dissatisfaction.png",150)    
     
