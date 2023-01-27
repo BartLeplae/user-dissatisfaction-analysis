@@ -62,7 +62,7 @@ def create_ordered_excel(df_incidents, index_group, avg_dissatisfaction, output_
     application_analysis.sort_values(by=["relevant","pvalue","dissatisfied count","total count"], ascending=[False,True, False, True], inplace=True)
     application_analysis.to_excel(output_file)
 
-def write_ordered_plot(df_incidents, index_group, avg_dissatisfaction, output_file, limit):
+def write_ordered_plot(df_incidents, index_group, avg_dissatisfaction, output_file, title, limit):
         # Create graph with a comparison of user dissatisfaction per supporting company and corresponding causal factors
     # Limit to support companies with more than 1000 survey responses
     org_names = ["user_dissatisfied","pred_reopened_0.0","pred_days_to_resolve_0.0","pred_close_code_No Resolution Action_0.0"]
@@ -94,4 +94,6 @@ def write_ordered_plot(df_incidents, index_group, avg_dissatisfaction, output_fi
 
     plt.axvline(avg_dissatisfaction, color='r')
     plt.axvline(0, color='grey')
+    plt.title(title)
     plt.savefig(output_file, dpi=300) 
+    

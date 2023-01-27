@@ -138,8 +138,8 @@ if __name__ == "__main__":
 
     for index, row in df_factor_values.iterrows():
         Z = np.copy(X)
-        Z[:,int(row['colnum'])] = row['value']
-        new_col = 'pred_'+ row['factor'] + '_' + str(row['value']) # replace the actual value with the value for which we want to predict the effect
+        Z[:,int(row['colnum'])] = row['value'] # replace the actual value with the value for which we want to predict the effect
+        new_col = 'pred_'+ row['factor'] + '_' + str(row['value']) 
         df_incidents[new_col] = model.predict_proba(Z)[:,1] # predict
         df_factor_values.loc[index,'predicted_dissatisfaction_delta']=df_incidents[new_col].mean() - avg_dissatisfaction # calculate the difference in satisfaction rating
         df_incidents[new_col] = df_incidents[new_col] - df_incidents['dissatisfaction_proba'] # replace with the predicted satisfaction with the difference in satisfaction
@@ -171,23 +171,23 @@ if __name__ == "__main__":
     create_ordered_excel(df_incidents, ["company","group","application"], avg_dissatisfaction, output_dir / f"12 Application Dissatisfaction.xlsx")
 
     # Write barcharts for company, group and application
-    write_ordered_plot(df_incidents, ["company"], avg_dissatisfaction, output_dir / f"51 Support Company Dissatisfaction.png",1000)
-    write_ordered_plot(df_incidents, ["group"], avg_dissatisfaction, output_dir / f"52 Support Group Dissatisfaction.png",200)
-    write_ordered_plot(df_incidents, ["application"], avg_dissatisfaction, output_dir / f"53 Support App Dissatisfaction.png",150)    
+    write_ordered_plot(df_incidents, ["company"], avg_dissatisfaction, output_dir / f"51 Support Company Dissatisfaction.png","Companies",1000)
+    write_ordered_plot(df_incidents, ["group"], avg_dissatisfaction, output_dir / f"52 Support Group Dissatisfaction.png","Groups",200)
+    write_ordered_plot(df_incidents, ["application"], avg_dissatisfaction, output_dir / f"53 Support App Dissatisfaction.png","Applications",150)    
 
     # Plot barcharts for each of the differentiating attributes 
-    write_ordered_plot(df_incidents, ["close_code_Information Provided / Training"], avg_dissatisfaction, output_dir / f"20 Information Provided Dissatisfaction.png",150)    
-    write_ordered_plot(df_incidents, ["reassignment_count"], avg_dissatisfaction, output_dir / f"21 Reassignment Dissatisfaction.png",150)    
-    write_ordered_plot(df_incidents, ["caller_is_employee"], avg_dissatisfaction, output_dir / f"22 Employee Dissatisfaction.png",150)
-    write_ordered_plot(df_incidents, ["has_knowledge_article"], avg_dissatisfaction, output_dir / f"23 Knowledge Article Dissatisfaction.png",150)
-    write_ordered_plot(df_incidents, ["close_code_Data Correction"], avg_dissatisfaction, output_dir / f"24 Data Correction Dissatisfaction.png",150)
-    write_ordered_plot(df_incidents, ["sla_breached"], avg_dissatisfaction, output_dir / f"25 SLA Breached Dissatisfaction.png",150)
-    write_ordered_plot(df_incidents, ["self_service"], avg_dissatisfaction, output_dir / f"26 Self Service Dissatisfaction.png",150)
-    write_ordered_plot(df_incidents, ["priority_is_4"], avg_dissatisfaction, output_dir / f"27 Priority 4 Dissatisfaction.png",150)
-    write_ordered_plot(df_incidents, ["close_code_Reboot / Restart"], avg_dissatisfaction, output_dir / f"28 Reboot Dissatisfaction.png",150)
-    write_ordered_plot(df_incidents, ["close_code_Security Modification"], avg_dissatisfaction, output_dir / f"29 Security Modification Dissatisfaction.png",150)
-    write_ordered_plot(df_incidents, ["close_code_Software Correction"], avg_dissatisfaction, output_dir / f"30 Software Correction Dissatisfaction.png",150)
-    write_ordered_plot(df_incidents, ["close_code_Environmental Restoration"], avg_dissatisfaction, output_dir / f"31 Environmental Restoration Dissatisfaction.png",150)    
+    write_ordered_plot(df_incidents, ["close_code_Information Provided / Training"], avg_dissatisfaction, output_dir / f"20 Information Provided Dissatisfaction.png","Information Provided",150)    
+    write_ordered_plot(df_incidents, ["reassignment_count"], avg_dissatisfaction, output_dir / f"21 Reassignment Dissatisfaction.png","Ticket Reassignment",150)    
+    write_ordered_plot(df_incidents, ["caller_is_employee"], avg_dissatisfaction, output_dir / f"22 Employee Dissatisfaction.png","Reported by Employee? (vs. External)",150)
+    write_ordered_plot(df_incidents, ["has_knowledge_article"], avg_dissatisfaction, output_dir / f"23 Knowledge Article Dissatisfaction.png","Ticket has knowledge article?",150)
+    write_ordered_plot(df_incidents, ["close_code_Data Correction"], avg_dissatisfaction, output_dir / f"24 Data Correction Dissatisfaction.png","Data Correction?",150)
+    write_ordered_plot(df_incidents, ["sla_breached"], avg_dissatisfaction, output_dir / f"25 SLA Breached Dissatisfaction.png","SLA Breached?",150)
+    write_ordered_plot(df_incidents, ["self_service"], avg_dissatisfaction, output_dir / f"26 Self Service Dissatisfaction.png","Self Service?",150)
+    write_ordered_plot(df_incidents, ["priority_is_4"], avg_dissatisfaction, output_dir / f"27 Priority 4 Dissatisfaction.png","Priority 4 (versus 1, 2 or 3)",150)
+    write_ordered_plot(df_incidents, ["close_code_Reboot / Restart"], avg_dissatisfaction, output_dir / f"28 Reboot Dissatisfaction.png","Reboot, Restart",150)
+    write_ordered_plot(df_incidents, ["close_code_Security Modification"], avg_dissatisfaction, output_dir / f"29 Security Modification Dissatisfaction.png","Security Modification",150)
+    write_ordered_plot(df_incidents, ["close_code_Software Correction"], avg_dissatisfaction, output_dir / f"30 Software Correction Dissatisfaction.png","Software Correction",150)
+    write_ordered_plot(df_incidents, ["close_code_Environmental Restoration"], avg_dissatisfaction, output_dir / f"31 Environmental Restoration Dissatisfaction.png","Environmental Restoration",150)    
 
     # Read all of the incidents (those with and those without survey responses)
     # Create a new simplified DecisionTree model (only based on the 3 most determining factors)
@@ -200,12 +200,30 @@ if __name__ == "__main__":
     # Apply the simplified model on all incident tickets
     X = np.array(df_all_incidents[["reopened","days_to_resolve","no resolution"]])
     df_all_incidents["dissatisfied_proba"] = model_all_incidents.predict_proba(X)[:,1]
-    df_all_incidents.to_csv("abc.csv")
+
+    # Average predicted dissatisfaction
+    avg_pred_dissatisfaction_all = df_all_incidents['dissatisfied_proba'].mean()
+    print(avg_pred_dissatisfaction_all)
+
+    Z = np.copy(X)
+    Z[:,int(0)] = 0 # No tickets repened
+    df_all_incidents["pred_reopened_0.0"] = model_all_incidents.predict_proba(Z)[:,1] -  df_all_incidents['dissatisfied_proba']
+
+    Z = np.copy(X)
+    Z[:,int(1)] = 0 # Resolved on day 0
+    df_all_incidents["pred_days_to_resolve_0.0"] = model_all_incidents.predict_proba(Z)[:,1] - df_all_incidents['dissatisfied_proba']
+
+    Z = np.copy(X)
+    Z[:,int(2)] = 0 # no tickets without resolution
+    df_all_incidents["pred_close_code_No Resolution Action_0.0"] = model_all_incidents.predict_proba(Z)[:,1] - df_all_incidents['dissatisfied_proba']
     
-    # Plot the result
-    write_ordered_plot(df_all_incidents, ["application"], avg_dissatisfaction, output_dir / f"53 Support App Dissatisfaction.png",150) 
+    df_all_incidents["user_dissatisfied"] = 0 # We don't have dissatisfaction information
+    df_all_incidents["contact_type"] = 1 # Contact type is used to count the records in write_ordered_plot
 
+    df_all_incidents.to_csv("abc.csv")
 
+    # Plot the result, differentiated by user_reponse
+    write_ordered_plot(df_all_incidents, ["user_responded"], avg_pred_dissatisfaction_all, output_dir / f"60 User Responded Dissatisfaction.png","User entered survey?",150) 
 
 
 
