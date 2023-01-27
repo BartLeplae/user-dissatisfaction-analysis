@@ -18,12 +18,13 @@ import graphviz
 from sklearn.tree import export_text
 # import seaborn as sns
 
-def DecisionTree(X,y, X_columns):
+def DecisionTree(X,y):
     """ build decision tree that predicts user dissatisfaction ratios based on causal factors
+    Use a score that evaluate the correctness of the predicted dissatisfaction % across the entire range of satisfaction scores
+    Do this instead of trying to correctly predict the satisfaction response for individual tickets
     Input: 
         X: available contribution factors  
         y: actual user dissatisfaction responses
-        X_columns: the names of the contributing factors
     Returns: the model
     """
     
@@ -37,6 +38,9 @@ def DecisionTree(X,y, X_columns):
         Returns: a score which is higher for better fits
         """
         d = {'actual': y_true, 'prob': y_pred}
+
+        # split the data in 10 groups based on the dissatisfaction prediction score
+        # for each of these groups: test to what extent the predicted score for the groups is different from the actual dissatisfaction%
         df_test = pd.DataFrame(data=d)
         df_test['dissatisfaction_rank'] = df_test['prob'].rank(pct=True, method='dense')
         df_test['dissatisfaction_rank'] = df_test['dissatisfaction_rank']*10
@@ -46,13 +50,14 @@ def DecisionTree(X,y, X_columns):
         pivot_test = pd.pivot_table(df_test,index=['dissatisfaction_rank',],values=['actual','prob'],aggfunc='sum')
         pivot_test['diff']=(pivot_test['prob']-pivot_test['actual']).abs()
 
-        return (1/(pivot_test['diff'].mean()))
+        return (1/(pivot_test['diff'].mean()))  # 1/x  to return a higher score when the sum of the absolue differences is lower
 
     # we are looking to match the probability across a range of tickets, rather than seeking to predict user dissatisfaction on a per ticket basis
     score = make_scorer(score_func, greater_is_better=True, needs_proba=True)  
 
     clf = tree.DecisionTreeClassifier()
 
+    # Hyperparameters for GridSearchCV
     params = {
         'max_depth': [5, 6, 7, 8, 9, 10],
         'min_samples_leaf': [50, 60, 70, 80, 90, 100, 110, 120, 130],
@@ -65,9 +70,11 @@ def DecisionTree(X,y, X_columns):
 
     grid_search.fit(X, y)
 
+    # Store the result for each of the Hyperparameter combinations
     # score_df = pd.DataFrame(grid_search.cv_results_)
     # score_df.to_excel('score.xlsx')
 
+    # Retrun the best model
     clf_best = grid_search.best_estimator_
 
     return clf_best

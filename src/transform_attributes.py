@@ -72,6 +72,39 @@ def transform_df_upon_db_retrieval (df):
     
     return df
 
+def transform_all_incidents_upon_db_retrieval (df):
+    """ transform dataframe as retrieved from the database
+    Input: dataframe with all incident tickets
+    Returns: modified dataframe
+    """
+    
+    # Transorm time to resolve from seconds to days and truncate to 15 days
+    df['days_to_resolve']=np.round(df['am_ttr']/(24*3600)).astype('int')
+    df.loc[df['days_to_resolve']>15,'days_to_resolve']=15 
+    df.drop(columns='am_ttr', inplace=True) # drop time to resolve in seconds
+    
+    # user is dissatisfied when survey response value is 1 or 2
+    # code dissatisfied as 1
+    # drop the survey_response_value column
+    df['user_dissatisfied']=0
+    df.loc[df['survey_response_value']<3,'user_dissatisfied']=1
+    df['user_responded']=0
+    df.loc[df['survey_response_value']>0,'user_responded']=1
+    df = df.drop(columns='survey_response_value')
+
+    df['no resolution']=0
+    df.loc[df["close_code"].isin 
+        (["Not Solved (too costly)",
+        "No Resolution Action",
+        "Not Solved (Not Reproducible)",
+        "Closed- Rejected",
+        "Closed- Canceled",
+        "Not Solved (not reproducible)",
+        "Not Solved (Too Costly)"]),"no resolution"]=1
+    df = df.drop(columns="close_code")
+    
+    return df
+
 def transform_df_upon_chi2 (df_factors):
     """ transform dataframe upon review of chi2 values
     Input: dataframe with the factors (columns of interest)
