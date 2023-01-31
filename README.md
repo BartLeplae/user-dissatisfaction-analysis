@@ -38,8 +38,8 @@ Folders:
 - Custom scorer function: ensure dissatisfied% is correct over a wide range of dissatisfaction scores
 
 ## Instructions
-to run from the csv files in the data folder: python main.py
-to run by obtaining the data from the data look: python main.py -d
+- to run from the csv files in the data folder: python main.py
+- to run by obtaining the data from the data look: python main.py -d
 
 ## Remarks
 
