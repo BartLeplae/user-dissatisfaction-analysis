@@ -10,13 +10,8 @@ import pandas as pd
 import numpy as np
 
 from sklearn import tree
-from sklearn.tree import export_graphviz
-from sklearn.model_selection import train_test_split, GridSearchCV
+from sklearn.model_selection import GridSearchCV
 from sklearn.metrics import make_scorer
-import matplotlib.pyplot as plt
-import graphviz 
-from sklearn.tree import export_text
-# import seaborn as sns
 
 def DecisionTree(X,y):
     """ build decision tree that predicts user dissatisfaction ratios based on causal factors
