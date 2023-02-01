@@ -8,9 +8,7 @@ Output:
 """
 import pandas as pd
 import numpy as np
-from stats import chi2_stats, binom_stats
-from unique_names_generator import get_random_name
-from unique_names_generator.data import NAMES, STAR_WARS, ANIMALS
+from stats import chi2_stats
 import random as random
 
 def transform_df_upon_db_retrieval (df):

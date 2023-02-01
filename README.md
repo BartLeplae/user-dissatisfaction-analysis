@@ -1,17 +1,28 @@
 # user-dissatisfaction-analysis
-Analyze the reasons why users respond 'dissatisfied' in incident resolution surveys
+Analyze the reasons why users provided a 'dissatisfied' response in incident resolution surveys
+
+## Project motivation
+Given a dataset of around 116000 incident tickets:
+- For around 10% of the incident tickets, users have provided a satisfaction survey response
+- For about 10% of the surveys, the users provided a 'dissatisfied' score
+
+Questions:
+1. Can the 'dissatisfied' survey responses be correlated with specific ticket attributes?
+2. Can the ratio of 'dissatisfied' responses for given subsets (e.g. those handled by a given support group) be predicted (modelled) based on specific attributes?
+3. What is the predicted satisfaction ratio for tickets that don't have a survey response?
 
 ## Installation
 https://github.com/BartLeplae/user-dissatisfaction-analysis
+Libraries used:
+- pandas, numpy
+- sys, pathlib.Path, argparse, random
+- sklearn.tree, sklearn.model_selection.GridSearchCV, sklearn.metrics.make_scorer
+- matplotlib.pyplot, seaborn
+- scipy.stats, stats.chi2_stats
+- pyodbc
 
-## Project motivation
-For around 10% of the incident tickets, users enter a satisfaction survey.
-For about 10% of the surveys, the users provide a 'dissatisfied' score
-
-Questions:
-1. Can the 'dissatisfied' responses be correlated with specific ticket attributes?
-2. Can the ratio of 'dissatisfied' responses be predicted (modelled) based on specific attributes?
-3. What is the predicted satisfaction ratio for tickets that don't have a survey response?
+While the program extracts the incident data from a datalake when provided the -d argument, the default behavior is to utilize the csv files located in the data folder.
+The applications, groups and companies are anonimized when extracted from the datalake for reasons of privacy.
 
 ## File Descriptions
 Folders:
