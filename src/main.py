@@ -15,13 +15,8 @@ Input:
     - Default Input File: incident_tickets.xlsx (alternative data source when -d is not provided )
     
 Output:
-    - "00 factors.xlsx": with a list of the factors and their correlation with user dissatisfaction
-    - "01 factor_values.xlsx": list of factor - value combinations and their correlation with user dissatisfaction
-    - Dissatisfaction Ratio.png: factor - value combinations and their correlation with user dissatisfaction
-    - Predicted dissatisfaction_delta.png: factor - value combinations and their correlation with user dissatisfaction
-    - Company Dissatisfaction Ratio.png: comparison of user dissatisfaction ratio's and causes per company
-    - Group Dissatisfaction Ratio.png: comparison of user dissatisfaction ratio's and causes per support group
-    - application Dissatisfaction Ratio.png: comparison of user dissatisfaction ratio's and causes per application
+    - Several Excel files in the 'out' folder: factors, factor_values, support company, support group, application
+    - Several png files (graphs) in the 'out' folder
 """
 
 import pandas as pd
@@ -30,13 +25,11 @@ import sys
 from pathlib import Path
 import argparse
 
-
 from incidents_from_odbc import get_incidents_from_db, get_all_incidents_from_db
 from stats import chi2_stats, ratio_stats, binom_stats
 from output import plot_factor_values, create_ordered_excel, write_ordered_plot, write_response_ratio_plot
 from transform_attributes import transform_df_upon_chi2, transform_df_upon_review_values, df_create_dummies, create_Xy
 from model import DecisionTree
-
 
 
 def get_project_root() -> Path:
@@ -60,7 +53,8 @@ if __name__ == "__main__":
     output_dir = project_path / "out"
 
     factors_data_file = output_dir / f"00 factors.xlsx"
-    factor_values_data_file = output_dir / f"01 factor_values.xlsx"    
+    factor_values_data_file = output_dir / f"01 factor_values.xlsx"
+    factor_values_data_file_initial = output_dir / f"01 initial_factor_values.xlsx"
 
     # Create dataframe with the incidents either from the database or Excel file
     incident_data_file = data_dir / f"{args.incidents_fname}.csv"
@@ -83,19 +77,19 @@ if __name__ == "__main__":
     df_factors = transform_df_upon_chi2 (df_factors)
     df_factors.to_excel(factors_data_file,index=False)
 
-    # List the individual values for each factor along with their correlation with user dissatisfaction and write to "01 factor_values.xlsx"
+    # List the individual values for each factor along with their correlation with user dissatisfaction and write to "01 initial_factor_values.xlsx"
     df_factor_values = ratio_stats(df_incidents, df_factors)
     df_factor_values = pd.merge(df_factors, df_factor_values, on = 'factor', how='right')
-    df_factor_values.sort_values(by=['chi', 'factor','dissatisfied_ratio'],ascending=[False,True,False],inplace=True)
-    df_factor_values.to_excel(factor_values_data_file, index=False)
+    df_factor_values.sort_values(by=['chi', 'factor','value'],ascending=[False,True,True],inplace=True)
+    df_factor_values.to_excel(factor_values_data_file_initial, index=False)
 
     # Transform the incident data upon review of "01 factor_values.xlsx":
     df_incidents, df_factors = transform_df_upon_review_values(df_incidents, df_factors)
 
-    # For every value, determine the correlation with customer dissatisfaction after transformation, write ordered df to "01 factor_values.xlsx"
+    # For every value, determine the correlation with customer dissatisfaction after transformation, write ordered df to "01 initial_factor_values.xlsx"
     df_factor_values = ratio_stats(df_incidents, df_factors)
     df_factor_values = pd.merge(df_factors, df_factor_values, on = 'factor', how='right')
-    df_factor_values.sort_values(by=['chi', 'factor','dissatisfied_ratio'],ascending=[False,True,False],inplace=True)
+    df_factor_values.sort_values(by=['chi', 'factor','value'],ascending=[False,True,True],inplace=True)
     df_factor_values.to_excel(factor_values_data_file, index=False)   
 
     # Create dummies for the fields containing multiple categorical values, write ordered df to factor.xlsx
@@ -219,4 +213,6 @@ if __name__ == "__main__":
     # Plot the result, differentiated by user_reponse
     write_ordered_plot(df_all_incidents, ["user_responded"], avg_pred_dissatisfaction_all, output_dir / f"08 User Responded Dissatisfaction.png","Dissatisfaction% - User entered survey?",0) 
 
+    # Plot the survey response ratios
     write_response_ratio_plot(df_all_incidents, output_dir / f"07 Survey Response Ratio.png")
+

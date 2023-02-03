@@ -16,7 +16,7 @@ def transform_df_upon_db_retrieval (df):
     Input: dataframe with incident tickets
     Returns: modified dataframe
     """
-    
+       
     # Transorm time to resolve from seconds to days and truncate to 15 days
     df['days_to_resolve']=np.round(df['am_ttr']/(24*3600)).astype('int')
     df.loc[df['days_to_resolve']>15,'days_to_resolve']=15 

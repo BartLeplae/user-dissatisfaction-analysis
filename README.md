@@ -17,7 +17,7 @@ Libraries used:
 - pandas, numpy
 - sys, pathlib.Path, argparse, random
 - sklearn.tree, sklearn.model_selection.GridSearchCV, sklearn.metrics.make_scorer
-- matplotlib.pyplot, seaborn
+- matplotlib, matplotlib.pyplot, seaborn
 - scipy.stats, stats.chi2_stats
 - pyodbc
 

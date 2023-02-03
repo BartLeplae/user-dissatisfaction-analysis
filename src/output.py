@@ -1,4 +1,6 @@
 import pandas as pd
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import seaborn as sns
 from stats import chi2_stats, ratio_stats, binom_stats
@@ -38,15 +40,15 @@ def create_ordered_excel(df_incidents, index_group, avg_dissatisfaction, output_
             index_group: variables to be used as index (rows) in the pivot_table
     Returns: None
     """
-    org_names = ["contact_type","dissatisfied count","user_dissatisfied","pred_reopened_0.0","pred_days_to_resolve_0.0","pred_close_code_No Resolution Action_0.0"]
+    org_names = ["contact_type","dissatisfied count","user_dissatisfied","dissatisfaction_proba","pred_reopened_0.0","pred_days_to_resolve_0.0","pred_close_code_No Resolution Action_0.0"] 
     org_names = index_group + org_names
-    new_names = ["total count","dissatisfied count","dissatisfaction%","reopened","resolution_time","no_resolution"]
+    new_names = ["total count","dissatisfied count","dissatisfaction%","dissatisfaction_proba","reopened","resolution_time","no_resolution"] 
     new_names = index_group + new_names
 
     application_analysis_avg = pd.pivot_table(
                         data=df_incidents, 
                         index=index_group,
-                        values=["user_dissatisfied","pred_reopened_0.0","pred_days_to_resolve_0.0","pred_close_code_No Resolution Action_0.0"],
+                        values=["user_dissatisfied","dissatisfaction_proba","pred_reopened_0.0","pred_days_to_resolve_0.0","pred_close_code_No Resolution Action_0.0"],
                         aggfunc='mean'
                         )
     application_analysis_avg.reset_index(inplace=True)
